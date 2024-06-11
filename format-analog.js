@@ -18,6 +18,7 @@ const productCategory =
   "Integrated Circuits>Interface>Analog Switches, Multiplexers, Demultiplexers"
 const productTypes = ["Switch", "MUX"]
 const imagePath = "analog_switches_multiplexers_demultiplexers_images"
+const datasheetPath = "analog_switch_multiplexer_demultiplexer_datasheets"
 
 createNewJsonAndCsv(
   inputJson,
@@ -28,5 +29,6 @@ createNewJsonAndCsv(
   voltageNameTwo,
   productCategory,
   productTypes,
-  imagePath
+  imagePath,
+  datasheetPath
 )

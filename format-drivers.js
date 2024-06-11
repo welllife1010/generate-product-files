@@ -16,6 +16,7 @@ const productCategory =
   "Integrated Circuits>Interface>Drivers, Receivers, Transceivers"
 const productTypes = ["Driver", "Transceiver", "Receiver"]
 const imagePath = "drivers-receivers-transceivers_images"
+const datasheetPath = "driver_receiver_transceiver_datasheets"
 
 createNewJsonAndCsv(
   inputJson,
@@ -26,5 +27,6 @@ createNewJsonAndCsv(
   "",
   productCategory,
   productTypes,
-  imagePath
+  imagePath,
+  datasheetPath
 )

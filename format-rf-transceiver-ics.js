@@ -10,6 +10,7 @@ const voltageName = "Voltage - Supply"
 const productCategory = "RF and Wireless>RF Transceiver ICs"
 const productTypes = ["IC RF TXRX", "IC RF", "IC RF TXRX+MCU"]
 const imagePath = "rf_transceiver_ics_images"
+const datasheetPath = "rf_transceiver_ic_datasheets"
 
 createNewJsonAndCsv(
   inputJson,
@@ -20,5 +21,6 @@ createNewJsonAndCsv(
   "",
   productCategory,
   productTypes,
-  imagePath
+  imagePath,
+  datasheetPath
 )

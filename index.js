@@ -7,7 +7,6 @@
 
 */
 const fs = require("fs")
-//const jsonexport = require("jsonexport")
 const jsonToCsv = require("./convert-csv.js")
 
 async function createNewJsonAndCsv(
@@ -19,7 +18,8 @@ async function createNewJsonAndCsv(
   voltageNameTwo = "",
   productCategory,
   productTypes,
-  imagePath
+  imagePath,
+  datasheetPath
 ) {
   const parametersOfInterest = [
     "Supplier Device Package",
@@ -43,123 +43,146 @@ async function createNewJsonAndCsv(
           "Operating Temperature": "Operating Temperature",
         }
 
-  //   const allowedManufacturers = [
-  //     "Advanced Micro Devices",
-  //     "Altera",
-  //     "AMD",
-  //     "Analog Devices Inc.",
-  //     "Analog Devices Inc./Maxim Integrated",
-  //     "Fairchild/ON Semiconductor", //Fairchild
-  //     "Fairchild Semiconductor",
-  //     "Infineon Technologies",
-  //     "Intel",
-  //     "Lattice Semiconductor Corporation", //Lattice Semiconductor
-  //     "Linear Technology",
-  //     "Littlefuse",
-  //     "Microchip Technology",
-  //     "Molex",
-  //     "Nexperia USA Inc.",
-  //     "NXP Semiconductors",
-  //     "NXP USA Inc.",
-  //     "Onsemi",
-  //     "Panasonic",
-  //     "Panasonic Electronic Components",
-  //     "Qualcomm",
-  //     "Renesas",
-  //     "Renesas Electronics Corporation",
-  //     "ROHM Semiconductor",
-  //     "Silicon Labs",
-  //     "Skyworks Solutions Inc.", // Skyworks
-  //     "STMicroelectronics",
-  //     "Texas Instruments",
-  //     "Xilinx",
-  //     "Zilog",
-  //   ]
+  // Helper function to determine the quantity based on category and availability
+  function determineQuantity(item, categories) {
+    const quantityAvailable =
+      item.ProductVariations[0]?.QuantityAvailableforPackageType
+    if (quantityAvailable === null || quantityAvailable === 0) {
+      const lowerCaseCategories = categories.toLowerCase()
+      if (lowerCaseCategories.includes("fpga")) {
+        return Math.floor(Math.random() * 2001) + 500 // Random between 500 - 2500
+      }
+      if (lowerCaseCategories.includes("microprocessor")) {
+        return Math.floor(Math.random() * 4251) + 750 // Random between 750 - 5000
+      }
+      if (lowerCaseCategories.includes("microcontroller")) {
+        return Math.floor(Math.random() * 4251) + 750 // Random between 750 - 5000
+      }
+      if (lowerCaseCategories.includes("analog")) {
+        return Math.floor(Math.random() * 7501) + 1000 // Random between 1000 - 8500
+      }
+      if (lowerCaseCategories.includes("controller")) {
+        return Math.floor(Math.random() * 11001) + 1000 // Random between 1000 - 12000
+      }
+      if (lowerCaseCategories.includes("driver")) {
+        return Math.floor(Math.random() * 13801) + 1200 // Random between 1200 - 15000
+      }
+      if (lowerCaseCategories.includes("rf switch")) {
+        return Math.floor(Math.random() * 10501) + 1500 // Random between 1500 - 12000
+      }
+      if (lowerCaseCategories.includes("rf transceiver")) {
+        return Math.floor(Math.random() * 5501) + 500 // Random between 500 - 6000
+      }
+      // Default random number if no specific category is matched
+      return Math.floor(Math.random() * 10000) + 1
+    }
+    return quantityAvailable
+  }
 
-  const newData = inputJsonFile
-    //.filter((item) => allowedManufacturers.includes(item.Manufacturer.Name))
-    .map((item) => {
-      const parameters = {}
-      const combinedParameters = [] // Array to store formatted strings of combined parameters
+  function mapProductCategory(category) {
+    const lowerCaseCategory = category.toLowerCase()
+    if (lowerCaseCategory.includes("microprocessor")) {
+      return "Microprocessors"
+    }
+    if (lowerCaseCategory.includes("microcontroller")) {
+      return "Microcontrollers"
+    }
+    if (lowerCaseCategory.includes("fpga")) {
+      return "FPGAs"
+    }
+    if (lowerCaseCategory.includes("analog")) {
+      return "Analog Switches, Multiplexers, Demultiplexers"
+    }
+    if (lowerCaseCategory.includes("controller")) {
+      return "Controllers"
+    }
+    if (lowerCaseCategory.includes("driver")) {
+      return "Drivers, Receivers, Transceivers"
+    }
+    if (lowerCaseCategory.includes("rf switch")) {
+      return "RF Switches"
+    }
+    if (lowerCaseCategory.includes("rf transceiver")) {
+      return "RF Transceiver ICs"
+    }
+    return category // Default to the original category if no match is found
+  }
 
-      item.Parameters.forEach((parameter) => {
-        if (parametersOfInterest.includes(parameter.ParameterText)) {
-          // Use the mapping to get the new key
-          const newKey =
-            parameterNameMapping[parameter.ParameterText] ||
-            parameter.ParameterText
-          let valueText = parameter.ValueText
+  const newData = inputJsonFile.map((item) => {
+    const parameters = {}
+    const combinedParameters = [] // Array to store formatted strings of combined parameters
 
-          // Special handling for Operating Temperature
-          if (parameter.ParameterText === "Operating Temperature") {
-            valueText = valueText
-              .replace(/~/g, "-")
-              .replace(/¬∞|°/g, "&deg;")
-              .replace(/\s*\(T[ACTJ]\)$/, "")
-          }
+    item.Parameters.forEach((parameter) => {
+      if (parametersOfInterest.includes(parameter.ParameterText)) {
+        // Use the mapping to get the new key
+        const newKey =
+          parameterNameMapping[parameter.ParameterText] ||
+          parameter.ParameterText
+        let valueText = parameter.ValueText
 
-          // Handle Voltage name one
-          if (parameter.ParameterText === voltageNameOne) {
-            valueText = valueText.replace(/~/g, "-")
-          }
-
-          // Handle Voltage name two
-          if (parameter.ParameterText === voltageNameTwo) {
-            valueText = valueText
-              .replace(/~/g, "-")
-              .replace(/¬±|±/g, "&plusmn;")
-          }
-
-          parameters[newKey] = valueText
-        } else if (additionalParameters.includes(parameter.ParameterText)) {
-          let formattedParameter = `<strong>${parameter.ParameterText}:</strong> ${parameter.ValueText}`
-          combinedParameters.push(formattedParameter)
+        // Special handling for Operating Temperature
+        if (parameter.ParameterText === "Operating Temperature") {
+          valueText = valueText
+            .replace(/~/g, "-")
+            .replace(/¬∞|°/g, "&deg;")
+            .replace(/\s*\(T[ACTJ]\)$/, "")
         }
-      })
 
-      // Format the combinedParameters by adding <br /> except for the last item
-      const combinedParametersString = combinedParameters
-        .map((param, index) => {
-          return index < combinedParameters.length - 1
-            ? param + "<br />"
-            : param
-        })
-        .join(" ")
+        // Handle Voltage name one
+        if (parameter.ParameterText === voltageNameOne) {
+          valueText = valueText.replace(/~/g, "-")
+        }
 
-      const productType = generateTernaryFunction(productTypes)
+        // Handle Voltage name two
+        if (parameter.ParameterText === voltageNameTwo) {
+          valueText = valueText.replace(/~/g, "-").replace(/¬±|±/g, "&plusmn;")
+        }
 
-      return {
-        Part_Number: item.ManufacturerProductNumber, // Part Number
-        Slug: formatImageUrl(item.ManufacturerProductNumber), // Slug
-        SKU: item.ManufacturerProductNumber, // SKU
-        Regular_Price: 0,
-        Woo_Product_Type: "simple",
-        Categories: productCategory,
-        Product_Type: productType(item),
-        //post_status: "publish",
-        Manufacturer: item.Manufacturer.Name, // Manufacturer
-        Product_status: item.ProductStatus.Status,
-        Package: item.ProductVariations[0]?.PackageType?.Name || null,
-        Additional_Specification: combinedParametersString,
-        Quantity: item.ProductVariations[0].QuantityAvailableforPackageType,
-        // DataSheet: item.DatasheetUrl,
-        Datasheet_URL: `<div class="datasheet-download"><a class="datasheet-download-link" rel="noopener noreferrer" href="${item.DatasheetUrl}" target="_blank" title="${item.ManufacturerProductNumber} | Datasheet">${pdfSvg}</a></div>`,
-        //images: item.PhotoUrl,
-        images:
-          item.PhotoUrl !== null
-            ? `https://suntsu-products-s3-bucket.s3.us-west-1.amazonaws.com/${imagePath}/${formatImageUrl(
-                item.ManufacturerProductNumber
-              )}.${getFileExtensionFromUrl(item.PhotoUrl)}`
-            : "https://suntsu-products-s3-bucket.s3.us-west-1.amazonaws.com/media/nophoto.webp",
-        Product_Description: item.Description.ProductDescription,
-        Detail_Description: item.Description.DetailedDescription?.replace(
-          /‚Ñ¢|™/g,
-          "&#8482;"
-        ).replace(/¬Æ|®/g, "&reg;"),
-        RFQ: `<div class="rfq-link-container"><a class="rfq-link" rel="noopener noreferrer" href="/get-a-quote/?part-number1=${item.ManufacturerProductNumber}" target="_blank" title="RFQ - ${item.ManufacturerProductNumber}">Get a Quote</a></div>`,
-        ...parameters, // Spread the parameters of interest into the main object
+        parameters[newKey] = valueText
+      } else if (additionalParameters.includes(parameter.ParameterText)) {
+        let formattedParameter = `<strong>${parameter.ParameterText}:</strong> ${parameter.ValueText}`
+        combinedParameters.push(formattedParameter)
       }
     })
+
+    // Format the combinedParameters by adding <br /> except for the last item
+    const combinedParametersString = combinedParameters
+      .map((param, index) => {
+        return index < combinedParameters.length - 1 ? param + "<br />" : param
+      })
+      .join(" ")
+
+    const productType = generateTernaryFunction(productTypes)
+
+    return {
+      Part_Number: item.ManufacturerProductNumber, // Part Number
+      Slug: formatImageUrl(item.ManufacturerProductNumber), // Slug
+      SKU: item.ManufacturerProductNumber, // SKU
+      Regular_Price: 0,
+      Woo_Product_Type: "simple",
+      Categories: productCategory,
+      Product_Type: productType(item),
+      Manufacturer: item.Manufacturer.Name, // Manufacturer
+      Product_status: item.ProductStatus.Status,
+      Package: item.ProductVariations[0]?.PackageType?.Name || null,
+      Additional_Specification: combinedParametersString,
+      Quantity: determineQuantity(item, productCategory), // Updated quantity logic
+      Datasheet_URL: getDatasheetDownloadHtml(item, datasheetPath),
+      images:
+        item.PhotoUrl !== null
+          ? `https://suntsu-products-s3-bucket.s3.us-west-1.amazonaws.com/${imagePath}/${formatImageUrl(
+              item.ManufacturerProductNumber
+            )}.jpg`
+          : "https://suntsu-products-s3-bucket.s3.us-west-1.amazonaws.com/media/nophoto.webp",
+      Product_Description: item.Description.ProductDescription,
+      Detail_Description: item.Description.DetailedDescription?.replace(
+        /‚Ñ¢|™/g,
+        "&#8482;"
+      ).replace(/¬Æ|®/g, "&reg;"),
+      RFQ: `<div class="rfq-link-container"><a class="rfq-link" rel="noopener noreferrer" href="/get-a-quote/?part-number1=${item.ManufacturerProductNumber}" target="_blank" title="RFQ - ${item.ManufacturerProductNumber}">Get a Quote</a></div>`,
+      ...parameters, // Spread the parameters of interest into the main object
+    }
+  })
 
   try {
     // Write the results to a JSON file
@@ -193,6 +216,32 @@ function encodeS3ImageName(fileName) {
     }
   )
   return encodedFileName
+}
+
+function getDatasheetDownloadHtml(item, datasheetPath) {
+  // Check if the DatasheetUrl is null
+  if (!item.DatasheetUrl) {
+    return null
+  }
+
+  // Function to format the manufacturer product number into a URL-safe string
+  function formatImageUrl(manufacturerProductNumber) {
+    return encodeURIComponent(manufacturerProductNumber.replace(/ /g, "-"))
+  }
+
+  // Check if the URL contains "digikey.com" or "mm.digikey.com"
+  if (
+    /digikey\.com/.test(item.DatasheetUrl) ||
+    /mm\.digikey\.com/.test(item.DatasheetUrl)
+  ) {
+    const s3Url = `https://suntsu-products-s3-bucket.s3.us-west-1.amazonaws.com/${datasheetPath}/${formatImageUrl(
+      item.ManufacturerProductNumber
+    )}.pdf`
+    return `<div class="datasheet-download"><a class="datasheet-download-link" rel="noopener noreferrer" href="${s3Url}" target="_blank" title="${item.ManufacturerProductNumber} | Datasheet">${pdfSvg}</a></div>`
+  }
+
+  // Default to the original DatasheetUrl
+  return `<div class="datasheet-download"><a class="datasheet-download-link" rel="noopener noreferrer" href="${item.DatasheetUrl}" target="_blank" title="${item.ManufacturerProductNumber} | Datasheet">${pdfSvg}</a></div>`
 }
 
 // Function to extract file extension from the URL
